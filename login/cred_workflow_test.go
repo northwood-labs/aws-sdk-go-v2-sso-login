@@ -1,18 +1,19 @@
-package aws_sdk_go_v2_sso_login
+package login
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/google/uuid"
 	"io/fs"
 	"os"
 	"reflect"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/google/uuid"
 )
 
 func Test_getConfigProfile(t *testing.T) {
@@ -29,11 +30,11 @@ func Test_getConfigProfile(t *testing.T) {
 	defaultOptionsConfLocation := testConfLocation + "/default_options.ini"
 
 	tests := []struct {
-		name           string
-		args           args
-		want           *configProfile
 		wantErrorValue error
 		ErrorAsType    any
+		want           *configProfile
+		args           args
+		name           string
 	}{
 		{
 			name: "missing config file",
@@ -41,9 +42,12 @@ func Test_getConfigProfile(t *testing.T) {
 				profileName:    "",
 				configFilePath: fakeFileLocation,
 			},
-			want:           nil,
-			wantErrorValue: NewLoadingConfigFileError(fakeFileLocation, &fs.PathError{Op: "open", Path: fakeFileLocation, Err: syscall.Errno(2)}),
-			ErrorAsType:    &LoadingConfigFileError{},
+			want: nil,
+			wantErrorValue: NewLoadingConfigFileError(
+				&fs.PathError{Op: "open", Path: fakeFileLocation, Err: syscall.Errno(2)},
+				fakeFileLocation,
+			),
+			ErrorAsType: &LoadingConfigFileError{},
 		},
 		{
 			name: "missing profile",
@@ -52,7 +56,7 @@ func Test_getConfigProfile(t *testing.T) {
 				configFilePath: blankConfLocation,
 			},
 			want:           nil,
-			wantErrorValue: NewMissingProfileError("", blankConfLocation, errors.New("")),
+			wantErrorValue: NewMissingProfileError(errors.New(""), "", blankConfLocation),
 			ErrorAsType:    &MissingProfileError{},
 		},
 		{
@@ -61,9 +65,15 @@ func Test_getConfigProfile(t *testing.T) {
 				profileName:    "missing_region",
 				configFilePath: missingArgsConfLocation,
 			},
-			want:           nil,
-			wantErrorValue: NewProfileValidationError("missing_region", missingArgsConfLocation, "region", "", "<non empty>"),
-			ErrorAsType:    &ProfileValidationError{},
+			want: nil,
+			wantErrorValue: NewProfileValidationError(
+				"missing_region",
+				missingArgsConfLocation,
+				"region",
+				"",
+				"<non empty>",
+			),
+			ErrorAsType: &ProfileValidationError{},
 		},
 		{
 			name: "missing_sso_account_id",
@@ -71,9 +81,15 @@ func Test_getConfigProfile(t *testing.T) {
 				profileName:    "missing_sso_account_id",
 				configFilePath: missingArgsConfLocation,
 			},
-			want:           nil,
-			wantErrorValue: NewProfileValidationError("missing_sso_account_id", missingArgsConfLocation, "sso_account_id", "", "<non empty>"),
-			ErrorAsType:    &ProfileValidationError{},
+			want: nil,
+			wantErrorValue: NewProfileValidationError(
+				"missing_sso_account_id",
+				missingArgsConfLocation,
+				"sso_account_id",
+				"",
+				"<non empty>",
+			),
+			ErrorAsType: &ProfileValidationError{},
 		},
 		{
 			name: "missing_sso_region",
@@ -81,9 +97,15 @@ func Test_getConfigProfile(t *testing.T) {
 				profileName:    "missing_sso_region",
 				configFilePath: missingArgsConfLocation,
 			},
-			want:           nil,
-			wantErrorValue: NewProfileValidationError("missing_sso_region", missingArgsConfLocation, "sso_region", "", "<non empty>"),
-			ErrorAsType:    &ProfileValidationError{},
+			want: nil,
+			wantErrorValue: NewProfileValidationError(
+				"missing_sso_region",
+				missingArgsConfLocation,
+				"sso_region",
+				"",
+				"<non empty>",
+			),
+			ErrorAsType: &ProfileValidationError{},
 		},
 		{
 			name: "missing_sso_role_name",
@@ -91,9 +113,15 @@ func Test_getConfigProfile(t *testing.T) {
 				profileName:    "missing_sso_role_name",
 				configFilePath: missingArgsConfLocation,
 			},
-			want:           nil,
-			wantErrorValue: NewProfileValidationError("missing_sso_role_name", missingArgsConfLocation, "sso_role_name", "", "<non empty>"),
-			ErrorAsType:    &ProfileValidationError{},
+			want: nil,
+			wantErrorValue: NewProfileValidationError(
+				"missing_sso_role_name",
+				missingArgsConfLocation,
+				"sso_role_name",
+				"",
+				"<non empty>",
+			),
+			ErrorAsType: &ProfileValidationError{},
 		},
 		{
 			name: "missing_sso_start_url",
@@ -101,9 +129,15 @@ func Test_getConfigProfile(t *testing.T) {
 				profileName:    "missing_sso_start_url",
 				configFilePath: missingArgsConfLocation,
 			},
-			want:           nil,
-			wantErrorValue: NewProfileValidationError("missing_sso_start_url", missingArgsConfLocation, "sso_start_url", "", "<non empty>"),
-			ErrorAsType:    &ProfileValidationError{},
+			want: nil,
+			wantErrorValue: NewProfileValidationError(
+				"missing_sso_start_url",
+				missingArgsConfLocation,
+				"sso_start_url",
+				"",
+				"<non empty>",
+			),
+			ErrorAsType: &ProfileValidationError{},
 		},
 		{
 			name: "complete profile",
@@ -327,14 +361,16 @@ func Test_writeCacheFile(t *testing.T) {
 
 			tt.args.cacheFilePath = cacheFilePath
 
-			if err := writeCacheFile(tt.args.cacheFileData, tt.args.cacheFilePath); (err != nil) != tt.wantErr {
+			if err := writeCacheFile(
+				tt.args.cacheFileData,
+				tt.args.cacheFilePath,
+			); (err != nil) != tt.wantErr {
 				t.Errorf("writeCacheFile() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			plan, _ := os.ReadFile(cacheFilePath)
 			var data cacheFileData
 			err := json.Unmarshal(plan, &data)
-
 			if err != nil {
 				t.Errorf("writeCacheFile() failed to unmarshal chache json")
 			}
@@ -357,12 +393,12 @@ func Test_getAwsCredsFromCache(t *testing.T) {
 		cacheFilePath string
 	}
 	tests := []struct {
-		name           string
-		profileName    string
-		args           args
+		wantErrorValue error
 		want           *aws.Credentials
 		want1          *aws.CredentialsCache
-		wantErrorValue error
+		args           args
+		name           string
+		profileName    string
 	}{
 		{
 			name:        "",
@@ -384,7 +420,7 @@ func Test_getAwsCredsFromCache(t *testing.T) {
 			},
 			want:           nil,
 			want1:          nil,
-			wantErrorValue: CredCacheError{},
+			wantErrorValue: NewCredCacheError(nil),
 		},
 	}
 	for _, tt := range tests {
@@ -394,13 +430,22 @@ func Test_getAwsCredsFromCache(t *testing.T) {
 			sharedConfigProfile := config.WithSharedConfigProfile(tt.profileName)
 			sharedConfigFile := config.WithSharedConfigFiles(sharedConfigFileLocations)
 
-			cfg, err := config.LoadDefaultConfig(context.Background(), sharedConfigProfile, sharedConfigFile)
+			cfg, err := config.LoadDefaultConfig(
+				context.Background(),
+				sharedConfigProfile,
+				sharedConfigFile,
+			)
 			if err != nil {
 				panic(err)
 			}
 			tt.args.cfg = &cfg
 
-			got, got1, err := getAwsCredsFromCache(tt.args.ctx, tt.args.cfg, tt.args.profile, tt.args.cacheFilePath)
+			got, got1, err := getAwsCredsFromCache(
+				tt.args.ctx,
+				tt.args.cfg,
+				tt.args.profile,
+				tt.args.cacheFilePath,
+			)
 			if (err != nil) && tt.wantErrorValue == nil {
 				t.Errorf("getAwsCredsFromCache() error = %v, wantErr %v", err, tt.wantErrorValue)
 				return
@@ -432,9 +477,9 @@ func Test_ssoLoginFlow(t *testing.T) {
 		loginTimeout time.Duration
 	}
 	tests := []struct {
+		want    *cacheFileData
 		name    string
 		args    args
-		want    *cacheFileData
 		wantErr bool
 	}{
 		{
@@ -465,13 +510,23 @@ func Test_ssoLoginFlow(t *testing.T) {
 			sharedConfigProfile := config.WithSharedConfigProfile("complete")
 			sharedConfigFile := config.WithSharedConfigFiles(sharedConfigFileLocations)
 
-			cfg, err := config.LoadDefaultConfig(context.Background(), sharedConfigProfile, sharedConfigFile)
+			cfg, err := config.LoadDefaultConfig(
+				context.Background(),
+				sharedConfigProfile,
+				sharedConfigFile,
+			)
 			if err != nil {
 				panic(err)
 			}
 			tt.args.cfg = &cfg
 
-			got, err := ssoLoginFlow(tt.args.ctx, tt.args.cfg, tt.args.profile, tt.args.headed, tt.args.loginTimeout)
+			got, err := ssoLoginFlow(
+				tt.args.ctx,
+				tt.args.cfg,
+				tt.args.profile,
+				tt.args.headed,
+				tt.args.loginTimeout,
+			)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ssoLoginFlow() error = %v, wantErr %v", err, tt.wantErr)
 				return
